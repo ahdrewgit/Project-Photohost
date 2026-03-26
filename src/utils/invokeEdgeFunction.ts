@@ -3,11 +3,37 @@ import { useSessionStore } from "@/stores/useSessionStore"
 
 type InvokeResult<T> = { data: T | null; error: null | { message: string; context?: { status?: number; body?: unknown } } }
 
+function isDebugEnabled() {
+  try {
+    return localStorage.getItem("photohost_debug") === "1" || new URLSearchParams(window.location.search).get("debug") === "1"
+  } catch {
+    return false
+  }
+}
+
 export async function invokeEdgeFunction<T>(name: string, body?: unknown): Promise<InvokeResult<T>> {
   const supabaseUrl = getRequiredEnv("VITE_SUPABASE_URL").trim().replace(/\/+$/, "")
   const anonKey = getRequiredEnv("VITE_SUPABASE_ANON_KEY").trim()
   const storeSession = useSessionStore.getState().session
   const token = storeSession?.access_token || anonKey
+
+  if (isDebugEnabled()) {
+    const safe = {
+      fn: name,
+      supabaseHost: (() => {
+        try {
+          return new URL(supabaseUrl).host
+        } catch {
+          return "(invalid url)"
+        }
+      })(),
+      apikeyPrefix: anonKey ? anonKey.slice(0, 6) : "(empty)",
+      apikeyLen: anonKey.length,
+      authPrefix: token ? token.slice(0, 12) : "(empty)",
+      authLen: token.length,
+    }
+    console.info("[PhotoHost] invokeEdgeFunction", safe)
+  }
 
   let res: Response
   try {

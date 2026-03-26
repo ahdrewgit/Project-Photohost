@@ -7,6 +7,7 @@ import AdminDashboard from "@/pages/AdminDashboard";
 import AdminGallery from "@/pages/AdminGallery";
 import ClientGallery from "@/pages/ClientGallery";
 import CheckoutResult from "@/pages/CheckoutResult";
+import DebugEnv from "@/pages/DebugEnv";
 import { useAuthBootstrap } from "@/hooks/useAuthBootstrap";
 
 export default function App() {
@@ -18,6 +19,7 @@ export default function App() {
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/invite" element={<InviteAccept />} />
+        <Route path="/debug" element={<DebugEnv />} />
 
         <Route
           path="/admin"
