@@ -43,7 +43,15 @@ function describeFunctionInvokeError(err: unknown) {
   const body = anyErr?.context?.body
 
   if (status === 403) return "Upload not allowed for this gallery. Make sure you’re signed in as the photographer who created it."
-  if (status === 401) return "You’re not signed in. Refresh the page and sign in again."
+  if (status === 401) {
+    if (typeof body === "object" && body && "message" in body) {
+      const m = String((body as { message?: string }).message ?? "")
+      if (m.toLowerCase().includes("no api key")) {
+        return "Upload request is missing the required Supabase apikey header. Deploy the latest frontend (and ensure VITE_SUPABASE_ANON_KEY is set in Vercel), then try again."
+      }
+    }
+    return "You’re not signed in (or your session expired). Refresh the page and sign in again."
+  }
   if (typeof body === "object" && body && "error" in body) {
     const inner = (body as { error?: string }).error
     if (inner && inner.toLowerCase().includes("bucket")) {
