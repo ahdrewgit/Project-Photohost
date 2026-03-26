@@ -1,8 +1,13 @@
 import { createClient } from "@supabase/supabase-js"
 import { getRequiredEnv } from "@/utils/env"
 
-export const supabase = createClient(
-  getRequiredEnv("VITE_SUPABASE_URL"),
-  getRequiredEnv("VITE_SUPABASE_ANON_KEY"),
-)
+const supabaseUrl = getRequiredEnv("VITE_SUPABASE_URL")
+const supabaseAnonKey = getRequiredEnv("VITE_SUPABASE_ANON_KEY")
 
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  global: {
+    headers: {
+      apikey: supabaseAnonKey,
+    },
+  },
+})
