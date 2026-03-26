@@ -44,6 +44,10 @@ function describeFunctionInvokeError(err: unknown) {
 
   if (status === 403) return "Upload not allowed for this gallery. Make sure you’re signed in as the photographer who created it."
   if (status === 401) {
+    if (typeof body === "object" && body && "detail" in body) {
+      const d = String((body as { detail?: string }).detail ?? "")
+      if (d) return d
+    }
     if (typeof body === "object" && body && "message" in body) {
       const m = String((body as { message?: string }).message ?? "")
       if (m.toLowerCase().includes("no api key")) {

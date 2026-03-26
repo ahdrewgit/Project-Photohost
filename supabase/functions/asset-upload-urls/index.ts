@@ -16,7 +16,12 @@ DenoRuntime.serve(async (req: Request) => {
 
     const userClient = createAnonAuthedClient(req)
     const { data: userData, error: userErr } = await userClient.auth.getUser()
-    if (userErr || !userData.user) return new Response("Unauthorized", { status: 401, headers: corsHeaders })
+    if (userErr || !userData.user) {
+      return new Response(JSON.stringify({ error: "Unauthorized", detail: userErr?.message ?? null }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      })
+    }
 
     const { galleryId, assetId, originalExt } = (await req.json()) as ReqBody
     const ext = (originalExt ?? "").trim().replace(".", "")

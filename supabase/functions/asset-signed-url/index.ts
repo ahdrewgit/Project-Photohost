@@ -10,7 +10,9 @@ type ReqBody = {
 
 const bucket = "gallery-assets"
 
-Deno.serve(async (req) => {
+const DenoRuntime = (globalThis as any).Deno
+
+DenoRuntime.serve(async (req: Request) => {
   const cors = handleCors(req)
   if (cors) return cors
 
@@ -19,7 +21,12 @@ Deno.serve(async (req) => {
 
     const userClient = createAnonAuthedClient(req)
     const { data: userData, error: userErr } = await userClient.auth.getUser()
-    if (userErr || !userData.user) return new Response("Unauthorized", { status: 401, headers: corsHeaders })
+    if (userErr || !userData.user) {
+      return new Response(JSON.stringify({ error: "Unauthorized", detail: userErr?.message ?? null }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      })
+    }
 
     const { galleryId, assetId, variant, forDownload } = (await req.json()) as ReqBody
     if (!galleryId || !assetId || (variant !== "thumb" && variant !== "original")) {
@@ -93,4 +100,3 @@ Deno.serve(async (req) => {
     })
   }
 })
-
