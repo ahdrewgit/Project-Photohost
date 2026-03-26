@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { Link, useNavigate, useParams } from "react-router-dom"
 import { supabase } from "@/utils/supabaseClient"
+import { invokeEdgeFunction } from "@/utils/invokeEdgeFunction"
 
 type Gallery = {
   id: string
@@ -33,6 +34,26 @@ type Invite = {
 type UploadUrlsRes = {
   original: { path: string; token: string }
   thumb: { path: string; token: string }
+}
+
+function describeFunctionInvokeError(err: unknown) {
+  const anyErr = err as { message?: string; context?: { status?: number; statusText?: string; body?: unknown } }
+  const status = anyErr?.context?.status
+  const message = anyErr?.message ?? "Edge Function error"
+  const body = anyErr?.context?.body
+
+  if (status === 403) return "Upload not allowed for this gallery. Make sure you’re signed in as the photographer who created it."
+  if (status === 401) return "You’re not signed in. Refresh the page and sign in again."
+  if (typeof body === "object" && body && "error" in body) {
+    const inner = (body as { error?: string }).error
+    if (inner && inner.toLowerCase().includes("bucket")) {
+      return "Storage bucket is missing. In Supabase Dashboard → Storage, create a private bucket named gallery-assets."
+    }
+    if (inner) return inner
+  }
+
+  if (status) return `Upload service error (${status}). ${message}`
+  return message
 }
 
 function fileExtFromType(type: string) {
@@ -127,8 +148,10 @@ export default function AdminGallery() {
 
         Promise.all(
           assetRows.map(async (asset) => {
-            const { data, error } = await supabase.functions.invoke("asset-signed-url", {
-              body: { galleryId, assetId: asset.id, variant: "thumb" },
+            const { data, error } = await invokeEdgeFunction<{ url?: string }>("asset-signed-url", {
+              galleryId,
+              assetId: asset.id,
+              variant: "thumb",
             })
             if (error) return null
             const url = (data as { url?: string } | null)?.url
@@ -181,7 +204,7 @@ export default function AdminGallery() {
     setBusyInvite(true)
     setError(null)
     try {
-      const { data, error } = await supabase.functions.invoke("create-invite", { body: { galleryId, email } })
+      const { data, error } = await invokeEdgeFunction<Invite>("create-invite", { galleryId, email })
       if (error) throw error
       const invite = data as Invite
       setInvites((prev) => [invite, ...prev])
@@ -204,8 +227,10 @@ export default function AdminGallery() {
         const assetId = crypto.randomUUID()
         const thumbFile = await createSquareThumb(file, 512)
 
-        const { data: urls, error: urlErr } = await supabase.functions.invoke("asset-upload-urls", {
-          body: { galleryId, assetId, originalExt: ext },
+        const { data: urls, error: urlErr } = await invokeEdgeFunction<UploadUrlsRes>("asset-upload-urls", {
+          galleryId,
+          assetId,
+          originalExt: ext,
         })
         if (urlErr) {
           const msg = urlErr.message
@@ -214,7 +239,7 @@ export default function AdminGallery() {
               "Upload service is not reachable. This usually means Edge Functions are not deployed yet for your Supabase project."
             )
           }
-          throw urlErr
+          throw new Error(describeFunctionInvokeError(urlErr))
         }
 
         const parsed = urls as UploadUrlsRes
@@ -247,8 +272,10 @@ export default function AdminGallery() {
 
         const insertedAsset = inserted as Asset
         setAssets((prev) => [...prev, insertedAsset])
-        const { data: signed, error: signErr } = await supabase.functions.invoke("asset-signed-url", {
-          body: { galleryId, assetId: insertedAsset.id, variant: "thumb" },
+        const { data: signed, error: signErr } = await invokeEdgeFunction<{ url?: string }>("asset-signed-url", {
+          galleryId,
+          assetId: insertedAsset.id,
+          variant: "thumb",
         })
         if (!signErr) {
           const url = (signed as { url?: string } | null)?.url

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { Link, useNavigate, useParams } from "react-router-dom"
 import { supabase } from "@/utils/supabaseClient"
+import { invokeEdgeFunction } from "@/utils/invokeEdgeFunction"
 import { useSessionStore } from "@/stores/useSessionStore"
 
 type Gallery = {
@@ -150,8 +151,10 @@ export default function ClientGallery() {
 
         const urlPairs = await Promise.all(
           assetRows.map(async (asset) => {
-            const { data: signed, error: signErr } = await supabase.functions.invoke("asset-signed-url", {
-              body: { galleryId, assetId: asset.id, variant: "thumb" },
+            const { data: signed, error: signErr } = await invokeEdgeFunction<{ url?: string }>("asset-signed-url", {
+              galleryId,
+              assetId: asset.id,
+              variant: "thumb",
             })
             if (signErr) return null
             const url = (signed as { url?: string } | null)?.url
@@ -219,8 +222,11 @@ export default function ClientGallery() {
     let isActive = true
     setActivePreviewUrl(null)
 
-    supabase.functions
-      .invoke("asset-signed-url", { body: { galleryId, assetId: activeAssetId, variant: "original" } })
+    invokeEdgeFunction<{ url?: string }>("asset-signed-url", {
+      galleryId,
+      assetId: activeAssetId,
+      variant: "original",
+    })
       .then(({ data, error }) => {
         if (!isActive) return
         if (error) return
@@ -333,9 +339,7 @@ export default function ClientGallery() {
       const successUrl = `${window.location.origin}/checkout/success?galleryId=${encodeURIComponent(galleryId)}`
       const cancelUrl = `${window.location.origin}/checkout/cancel?galleryId=${encodeURIComponent(galleryId)}`
 
-      const { data, error } = await supabase.functions.invoke("stripe-create-checkout", {
-        body: { galleryId, successUrl, cancelUrl },
-      })
+      const { data, error } = await invokeEdgeFunction<{ url?: string }>("stripe-create-checkout", { galleryId, successUrl, cancelUrl })
       if (error) throw error
 
       const url = (data as { url?: string } | null)?.url
@@ -367,8 +371,11 @@ export default function ClientGallery() {
       return
     }
     setError(null)
-    const { data, error } = await supabase.functions.invoke("asset-signed-url", {
-      body: { galleryId, assetId: asset.id, variant: "original", forDownload: true },
+    const { data, error } = await invokeEdgeFunction<{ url?: string }>("asset-signed-url", {
+      galleryId,
+      assetId: asset.id,
+      variant: "original",
+      forDownload: true,
     })
     if (error) {
       setError(error.message)

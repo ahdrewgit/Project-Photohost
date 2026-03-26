@@ -5,7 +5,9 @@ type ReqBody = { galleryId: string; assetId: string; originalExt: string }
 
 const bucket = "gallery-assets"
 
-Deno.serve(async (req) => {
+const DenoRuntime = (globalThis as any).Deno
+
+DenoRuntime.serve(async (req: Request) => {
   const cors = handleCors(req)
   if (cors) return cors
 
@@ -39,8 +41,16 @@ Deno.serve(async (req) => {
       service.storage.from(bucket).createSignedUploadUrl(thumbPath),
     ])
 
-    if (o.error) throw o.error
-    if (t.error) throw t.error
+    if (o.error || t.error) {
+      const msg = (o.error?.message || t.error?.message || "Storage error").toLowerCase()
+      if (msg.includes("bucket") && msg.includes("not") && msg.includes("found")) {
+        return new Response(JSON.stringify({ error: `Storage bucket not found: ${bucket}` }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        })
+      }
+      throw o.error ?? t.error
+    }
 
     return new Response(
       JSON.stringify({
@@ -57,4 +67,3 @@ Deno.serve(async (req) => {
     })
   }
 })
-

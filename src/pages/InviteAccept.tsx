@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
-import { supabase } from "@/utils/supabaseClient"
+import { invokeEdgeFunction } from "@/utils/invokeEdgeFunction"
 import { useSessionStore } from "@/stores/useSessionStore"
 
 export default function InviteAccept() {
@@ -26,8 +26,7 @@ export default function InviteAccept() {
 
     let isActive = true
 
-    supabase
-      .functions.invoke("redeem-invite", { body: { token } })
+    invokeEdgeFunction<{ galleryId?: string }>("redeem-invite", { token })
       .then(({ data, error: fnErr }) => {
         if (!isActive) return
         if (fnErr) throw fnErr
@@ -59,4 +58,3 @@ export default function InviteAccept() {
     </div>
   )
 }
-

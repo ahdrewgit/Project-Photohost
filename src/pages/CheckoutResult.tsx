@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
 import { Link, useSearchParams } from "react-router-dom"
-import { supabase } from "@/utils/supabaseClient"
+import { invokeEdgeFunction } from "@/utils/invokeEdgeFunction"
 
 export default function CheckoutResult({ mode }: { mode: "success" | "cancel" }) {
   const [params] = useSearchParams()
@@ -13,8 +13,7 @@ export default function CheckoutResult({ mode }: { mode: "success" | "cancel" })
     if (!galleryId) return
     let isActive = true
 
-    supabase
-      .functions.invoke("sync-entitlement", { body: { galleryId } })
+    invokeEdgeFunction("sync-entitlement", { galleryId })
       .then(({ error }) => {
         if (!isActive) return
         if (error) throw error
@@ -56,4 +55,3 @@ export default function CheckoutResult({ mode }: { mode: "success" | "cancel" })
     </div>
   )
 }
-
